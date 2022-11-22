@@ -1,139 +1,206 @@
-# TODO: argparse
-# TODO: main function
+import os
+from pathlib import Path
 from multiprocessing import Process, Queue
 from datetime import datetime
 
+from matplotlib import cm
+import numpy as np
 import cv2
+
+
+def get_cmap_for_cv2(num_classes: int, cmap_name: str = 'jet'):
+    indices = np.linspace(0, 1, num_classes)
+    cmap = cm.get_cmap(cmap_name)
+    ind_a, ind_b = indices[:num_classes//2], indices[num_classes//2:][::-1]
+    indices = np.reshape(np.stack([ind_a, ind_b]), num_classes, order='F')
+    colors = cmap(indices)
+    colors = np.int32(255*colors)
+    return colors
+
+
+def get_actions(data_root, dataset: str):
+    mapping_file = os.path.join(data_root, dataset, 'mapping.txt')
+    with open(mapping_file, 'r') as file_ptr:
+        actions = file_ptr.read().split('\n')[:-1]
+
+    actions_dict = dict()
+    for a in actions:
+        actions_dict[a.split()[1]] = int(a.split()[0])
+    return actions_dict
+
+
+def read_file(path):
+    with open(path, 'r') as f:
+        content = f.read()
+        f.close()
+    return content
 
 
 class VAS_visualizer():
     def __init__(
         self,
-        height,
-        width,
-        font_color=(255, 255, 255),
+        dataset,
+        data_root,
+        cmap_name='turbo',
+        foucc='mp4v',
+        text_color=(255, 255, 255),
         progress_line_color=(0, 0, 0),
+        total_time=3600*100,
+        file_time=60*10,
+        font_size=0.3,
     ):
-        self.font_color = font_color
+        self.data_root = data_root
+        self.dataset = dataset
+        self.cmap_name = cmap_name
+        self.foucc = cv2.VideoWriter_fourcc(*f'{foucc}')
+        self.text_color = text_color
         self.progress_line_color = progress_line_color
+
+        self.total_time = total_time
+        self.file_time = file_time
+        self.font_size = font_size
         # self.progress_cmap = progress_cmap
+        self.color_map = self.get_action_color_mapping()
+        # self.color_map = {
+        #     'SIL': (75, 75, 75),
+        #     'take_bowl': (25, 150, 0),
+        #     'pour_cereals': (150, 25, 0),
+        #     'pour_milk': (150, 0, 150),
+        #     'stir_cereals': (0, 25, 150),
+        #     'take_cup': (0, 150, 150),
+        #     'pour_coffee': (150, 150, 0),
+        #     'stir_coffee': (150, 200, 25),
+        # }
 
-    def vis(self, video, predict, correct):
-        pass
+    def __call__(self, video_ref, vid_correct, vid_predict, save_path):
+        vidCap = cv2.VideoCapture(video_ref)
+        width = int(vidCap.get(cv2.CAP_PROP_FRAME_WIDTH))
+        height = int(vidCap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        fps = vidCap.get(cv2.CAP_PROP_FPS)
 
-    def draw(self, image):
-        pass
+        taskqueue = Queue()
 
+        frame_counter = 0
+        # total_frames = fps * self.total_time
+        # frames_per_file = fps * self.file_time
+        frames_per_file = len(vid_correct)
 
-def draw_progress_bar(image, image_idx, width, height):
-    colors = {
-        'white': (255, 255, 255),
-        'black': (0, 0, 0),
-        'green': (0, 255, 0),
-    }
+        proc = Process(target=self.image_vis, args=(
+            taskqueue, width, height, fps, frames_per_file, save_path,
+            vid_correct, vid_predict
+        ))
+        proc.start()
+        while frame_counter < frames_per_file:
+            ret, image = vidCap.read()
 
-    # Predict class
-    predict = 'Tag'
-    cv2.putText(image, 'Predict:', (10, 175), cv2.FONT_HERSHEY_SIMPLEX,
-                0.35, colors['white'], 1, cv2.LINE_AA)
-    cv2.putText(image, predict, (60, 175), cv2.FONT_HERSHEY_SIMPLEX,
-                0.35, colors['white'], 1, cv2.LINE_AA)
+            if ret:
+                taskqueue.put((image, frame_counter))
+                frame_counter += 1
+            else:
+                break
 
-    # Progress bar
-    cv2.putText(image, 'Predict', (10, 200), cv2.FONT_HERSHEY_SIMPLEX,
-                0.35, colors['white'], 1, cv2.LINE_AA)
-    cv2.putText(image, 'Correct', (10, 215), cv2.FONT_HERSHEY_SIMPLEX,
-                0.35, colors['white'], 1, cv2.LINE_AA)
+        taskqueue.put((None, None))
+        proc.join()
+        vidCap.release()
 
-    for i in range(80):
-        if i % 2 == 0:
-            color = colors['green']
-        else:
-            color = colors['white']
-        cv2.rectangle(image, (60+i, 194), (61+i, 200),
-                      color, -1)
-        cv2.rectangle(image, (60+i, 209), (61+i, 215),
-                      color, -1)
+    def image_vis(self, taskqueue, width, height, fps, frames_per_file, save_path,
+                  vid_correct, vid_predict):
+        writer = None
 
-    start_point = (60+image_idx, 194)
-    end_point = (60+image_idx, 215)
+        # writer = cv2.VideoWriter(
+        #     str(Path(save_path).joinpath(f'output.mp4')), self.foucc, fps, (width, height))
 
-    cv2.line(image, start_point, end_point, color=colors['black'], thickness=1)
-    return image
+        image_idx = 0
+        while True:
+            image, frame_counter = taskqueue.get()
 
+            if image is None:
+                break
 
-def image_vis(taskqueue, width, height, fps, frames_per_file):
-    # fourcc = cv2.VideoWriter_fourcc(*'XVID')
-    #fourcc = cv2.VideoWriter_fourcc(*'H264')
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            if frame_counter % frames_per_file == 0:
 
-    writer = None
+                if writer:
+                    writer.release()
 
-    image_idx = 0
-    while True:
-        image, frame_counter = taskqueue.get()
+                # now = datetime.now()
+                # timestamp = now.strftime("%Y-%m-%d-%H-%M-%S")
+                # TODO: suffix
+                writer = cv2.VideoWriter(
+                    save_path, self.foucc, fps, (width, height))
 
-        if image is None:
-            break
+            # TODO: predict, correct tag
+            if image_idx % 2 == 0:
+                self.draw(image, image_idx, vid_correct, vid_predict)
+                writer.write(image)
+            image_idx += 1
 
-        if frame_counter % frames_per_file == 0:
+        writer.release()
 
-            if writer:
-                writer.release()
+    def draw(self, image, image_idx, vid_correct, vid_predict):
+        # Predict class
+        # TODO: layout
+        predict = vid_predict[image_idx]
+        correct = vid_correct[image_idx]
+        text_params = (cv2.FONT_HERSHEY_SIMPLEX, self.font_size,
+                       self.text_color, 1, cv2.LINE_AA)
 
-            # index = int(frame_counter // frames_per_file)
-            # writer = cv2.VideoWriter(f'output-{index}.mp4', fourcc, fps, (width, height))
+        cv2.putText(image, 'Predict:', (10, 175), *text_params)
+        cv2.putText(image, predict, (60, 175), *text_params)
+        cv2.putText(image, 'Correct', (10, 185), *text_params)
+        cv2.putText(image, correct, (60, 185), *text_params)
 
-            now = datetime.now()
-            timestamp = now.strftime("%Y-%m-%d-%H-%M-%S")
-            writer = cv2.VideoWriter(
-                f'videos/output-{timestamp}.mp4', fourcc, fps, (width, height))
+        # Progress bar
+        cv2.putText(image, 'Predict', (10, 205), *text_params)
+        cv2.putText(image, 'Correct', (10, 215), *text_params)
 
-        draw_progress_bar(image, image_idx, width, height)
-        writer.write(image)
-        image_idx += 1
+        r = 16
+        for i in range(len(vid_correct)//r):
+            correct = vid_correct[i*r]
+            correct_color = self.color_map[correct].tolist()
+            correct_color = tuple([int(v) for v in correct_color])
+            cv2.rectangle(image, (60+i, 200), (61+i, 205),
+                          correct_color, -1)
 
-    writer.release()
+            predict = vid_predict[i*r]
+            predict_color = self.color_map[predict].tolist()
+            predict_color = tuple([int(v) for v in predict_color])
+            cv2.rectangle(image, (60+i, 210), (61+i, 215),
+                          predict_color, -1)
+
+        start_point = (60+image_idx//r, 200)
+        end_point = (60+image_idx//r, 215)
+
+        cv2.line(image, start_point, end_point,
+                 color=self.progress_line_color, thickness=1)
+
+    def get_action_color_mapping(self):
+        actions = get_actions(self.data_root, self.dataset)
+        num_classes = len(actions)
+        colors = get_cmap_for_cv2(num_classes, cmap_name=self.cmap_name)
+        action_to_color = dict()
+        for action, color in zip(actions, colors):
+            action_to_color[action] = color[:-1]
+        return action_to_color
 
 
 if __name__ == '__main__':
-    f = r'C:\Users\test\Desktop\Leon\Datasets\Breakfast\BreakfastII_15fps_qvga_sync\P03\cam01\P03_cereals.avi'
+    ground_truth_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\breakfast\groundTruth'
+    recog_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\results\breakfast\split_1'
+    vid = 'P03_cam01_P03_coffee.txt'
+    video_files = Path(ground_truth_path).glob('*.txt')
+    video_root = r'C:\Users\test\Desktop\Leon\Datasets\Breakfast\BreakfastII_15fps_qvga_sync'
+    data_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data'
+    V = VAS_visualizer(cmap_name='turbo')
 
-    vidCap = cv2.VideoCapture(f)
+    for vid_path in video_files:
+        vid = vid_path.name
+        keys = vid.split('_')
+        keys = [keys[0], keys[1], f'{keys[2]}_{keys[3][:-4]}.avi']
+        video_ref = os.path.join(video_root, *keys)
 
-    width = int(vidCap.get(cv2.CAP_PROP_FRAME_WIDTH))
-    height = int(vidCap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-    fps = vidCap.get(cv2.CAP_PROP_FPS)
-
-    taskqueue = Queue()
-
-    frame_counter = 0
-
-    total_time = 100 * 3600  # 30 seconds per process
-    file_time = 10 * 60  # 10 seconds per file
-
-    total_frames = fps * total_time
-
-    frames_per_file = fps * file_time
-
-    proc = Process(target=image_vis, args=(
-        taskqueue, width, height, fps, frames_per_file))
-    proc.start()
-
-    while frame_counter < total_frames:
-        ret, image = vidCap.read()
-
-        if ret:
-            taskqueue.put((image, frame_counter))
-            frame_counter += 1
-        else:
-            break
-
-    # 傳入 None 終止工作行程
-    taskqueue.put((None, None))
-
-    # 等待工作行程結束
-    proc.join()
-
-    vidCap.release()
+        gt_file = os.path.join(ground_truth_path, vid)
+        gt_content = read_file(gt_file).split('\n')[0:-1]
+        recog_file = os.path.join(recog_path, vid.split('.')[0])
+        recog_content = read_file(recog_file).split('\n')[1].split()
+        V(video_ref, vid_correct=gt_content,
+          vid_predict=recog_content, save_path=f'videos/{vid}.mp4')
