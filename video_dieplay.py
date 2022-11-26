@@ -59,18 +59,7 @@ class VAS_visualizer():
         self.total_time = total_time
         self.file_time = file_time
         self.font_size = font_size
-        # self.progress_cmap = progress_cmap
         self.color_map = self.get_action_color_mapping()
-        # self.color_map = {
-        #     'SIL': (75, 75, 75),
-        #     'take_bowl': (25, 150, 0),
-        #     'pour_cereals': (150, 25, 0),
-        #     'pour_milk': (150, 0, 150),
-        #     'stir_cereals': (0, 25, 150),
-        #     'take_cup': (0, 150, 150),
-        #     'pour_coffee': (150, 150, 0),
-        #     'stir_coffee': (150, 200, 25),
-        # }
 
     def __call__(self, video_ref, vid_correct, vid_predict, save_path):
         vidCap = cv2.VideoCapture(video_ref)
@@ -183,14 +172,19 @@ class VAS_visualizer():
         return action_to_color
 
 
-if __name__ == '__main__':
-    ground_truth_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\breakfast\groundTruth'
+def test_coffee():
+    # cap = cv2.VideoCapture("videos/P03_webcam01_P03_tea.txt.mp4")
+    # length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    # print(length)
+
+    ground_truth_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\coffee_room\groundTruth'
     recog_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\results\breakfast\split_1'
-    vid = 'P03_cam01_P03_coffee.txt'
+    # vid = 'P03_cam01_P03_coffee.txt'
     video_files = Path(ground_truth_path).glob('*.txt')
-    video_root = r'C:\Users\test\Desktop\Leon\Datasets\Breakfast\BreakfastII_15fps_qvga_sync'
+    video_root = r'C:\Users\test\Desktop\Leon\Datasets\coffee_room_door_event_dataset'
     data_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data'
-    V = VAS_visualizer(cmap_name='turbo')
+    dataset = 'coffee_room'
+    V = VAS_visualizer(data_root, dataset, cmap_name='turbo')
 
     for vid_path in video_files:
         vid = vid_path.name
@@ -204,3 +198,38 @@ if __name__ == '__main__':
         recog_content = read_file(recog_file).split('\n')[1].split()
         V(video_ref, vid_correct=gt_content,
           vid_predict=recog_content, save_path=f'videos/{vid}.mp4')
+
+
+if __name__ == '__main__':
+    test_coffee()
+    # # f = r'C:\Users\test\Desktop\Leon\Projects\video_features\output\i3d'
+    # f = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\breakfast\features'
+    # for ff in Path(f).glob('*.npy'):
+    #     data = np.load(ff)
+    #     print(ff.name, data.shape, f'max {data.max()} min {data.min()}')
+    # # import cv2
+
+    # # cap = cv2.VideoCapture("videos/P03_webcam01_P03_tea.txt.mp4")
+    # # length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    # # print(length)
+
+    # ground_truth_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\breakfast\groundTruth'
+    # recog_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\results\breakfast\split_1'
+    # vid = 'P03_cam01_P03_coffee.txt'
+    # video_files = Path(ground_truth_path).glob('*.txt')
+    # video_root = r'C:\Users\test\Desktop\Leon\Datasets\Breakfast\BreakfastII_15fps_qvga_sync'
+    # data_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data'
+    # V = VAS_visualizer(cmap_name='turbo')
+
+    # for vid_path in video_files:
+    #     vid = vid_path.name
+    #     keys = vid.split('_')
+    #     keys = [keys[0], keys[1], f'{keys[2]}_{keys[3][:-4]}.avi']
+    #     video_ref = os.path.join(video_root, *keys)
+
+    #     gt_file = os.path.join(ground_truth_path, vid)
+    #     gt_content = read_file(gt_file).split('\n')[0:-1]
+    #     recog_file = os.path.join(recog_path, vid.split('.')[0])
+    #     recog_content = read_file(recog_file).split('\n')[1].split()
+    #     V(video_ref, vid_correct=gt_content,
+    #       vid_predict=recog_content, save_path=f'videos/{vid}.mp4')
