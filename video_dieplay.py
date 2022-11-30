@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 from multiprocessing import Process, Queue
 from datetime import datetime
+from typing import Tuple
 
 from matplotlib import cm
 import numpy as np
@@ -11,8 +12,8 @@ import cv2
 def get_cmap_for_cv2(num_classes: int, cmap_name: str = 'jet'):
     indices = np.linspace(0, 1, num_classes)
     cmap = cm.get_cmap(cmap_name)
-    ind_a, ind_b = indices[:num_classes//2], indices[num_classes//2:][::-1]
-    indices = np.reshape(np.stack([ind_a, ind_b]), num_classes, order='F')
+    # ind_a, ind_b = indices[:num_classes//2], indices[num_classes//2:][::-1]
+    # indices = np.reshape(np.stack([ind_a, ind_b]), num_classes, order='F')
     colors = cmap(indices)
     colors = np.int32(255*colors)
     return colors
@@ -34,6 +35,30 @@ def read_file(path):
         content = f.read()
         f.close()
     return content
+
+
+class AssignGridPosition():
+    def __init__(self, height: int, width: int, grid_height_num: int = 9, grid_width_num: int = 16):
+        self.height = height
+        self.width = width
+        self.grid_height_num = grid_height_num
+        self.grid_width_num = grid_width_num
+        self.cell_height = height / self.grid_height_num
+        self.cell_width = width / self.grid_width_num
+        self.grid_to_pixs = self.build_grid_to_pixs()
+
+    def __call__(self, grid_height_idx: int, grid_width_idx: int) -> Tuple:
+        assert grid_height_idx < self.grid_height_num, f'Grid height {grid_height_idx} out of range'
+        assert grid_width_idx < self.grid_width_num, f'Grid width {grid_width_idx} out of range'
+        return self.grid_to_pixs[(grid_height_idx, grid_width_idx)]
+
+    def build_grid_to_pixs(self) -> dict:
+        grid_to_pixs = {}
+        for grid_h in range(self.grid_height_num):
+            for grid_w in range(self.grid_width_num):
+                grid_to_pixs[(grid_h, grid_w)] = (
+                    int(grid_h*self.cell_height), int(grid_w*self.cell_width))
+        return grid_to_pixs
 
 
 class VAS_visualizer():
@@ -60,6 +85,8 @@ class VAS_visualizer():
         self.file_time = file_time
         self.font_size = font_size
         self.color_map = self.get_action_color_mapping()
+        self.point = AssignGridPosition(height=1920, width=1080,
+                                        grid_height_num=64, grid_width_num=36)
 
     def __call__(self, video_ref, vid_correct, vid_predict, save_path):
         vidCap = cv2.VideoCapture(video_ref)
@@ -119,48 +146,64 @@ class VAS_visualizer():
 
             # TODO: predict, correct tag
             if image_idx % 2 == 0:
-                self.draw(image, image_idx, vid_correct, vid_predict)
+                self.draw(image, image_idx, vid_correct,
+                          vid_predict, width, height)
                 writer.write(image)
             image_idx += 1
 
         writer.release()
 
-    def draw(self, image, image_idx, vid_correct, vid_predict):
+    def draw(self, image, image_idx, vid_correct, vid_predict, width, height):
+        # 240 X 320 -> 1080 X 1920
         # Predict class
-        # TODO: layout
         predict = vid_predict[image_idx]
         correct = vid_correct[image_idx]
         text_params = (cv2.FONT_HERSHEY_SIMPLEX, self.font_size,
                        self.text_color, 1, cv2.LINE_AA)
 
-        cv2.putText(image, 'Predict:', (10, 175), *text_params)
-        cv2.putText(image, predict, (60, 175), *text_params)
-        cv2.putText(image, 'Correct', (10, 185), *text_params)
-        cv2.putText(image, correct, (60, 185), *text_params)
+        cv2.putText(image, 'Predict:', self.point(*(10, 26)), *text_params)
+        cv2.putText(image, predict, self.point(*(16, 26)), *text_params)
+        cv2.putText(image, 'Correct', self.point(*(10, 28)), *text_params)
+        cv2.putText(image, correct, self.point(*(16, 28)), *text_params)
 
         # Progress bar
-        cv2.putText(image, 'Predict', (10, 205), *text_params)
-        cv2.putText(image, 'Correct', (10, 215), *text_params)
+        cv2.putText(image, 'Predict', self.point(*(10, 31)), *text_params)
+        cv2.putText(image, 'Correct', self.point(*(10, 33)), *text_params)
 
         r = 16
+        predict_bar_start = self.point(*(16, 30))
+        correct_bar_start = self.point(*(16, 32))
+        # XXX: change to cell height, width
+        rec_h = 30
+        rec_w = 40
         for i in range(len(vid_correct)//r):
             correct = vid_correct[i*r]
             correct_color = self.color_map[correct].tolist()
             correct_color = tuple([int(v) for v in correct_color])
-            cv2.rectangle(image, (60+i, 200), (61+i, 205),
+            cv2.rectangle(image,
+                          (correct_bar_start[0]+i*rec_w,
+                           correct_bar_start[1]),
+                          (correct_bar_start[0]+(i+1)*rec_w,
+                           correct_bar_start[1]+rec_h),
                           correct_color, -1)
 
             predict = vid_predict[i*r]
             predict_color = self.color_map[predict].tolist()
             predict_color = tuple([int(v) for v in predict_color])
-            cv2.rectangle(image, (60+i, 210), (61+i, 215),
+            cv2.rectangle(image,
+                          (predict_bar_start[0]+i*rec_w,
+                           predict_bar_start[1]),
+                          (predict_bar_start[0]+(i+1)*rec_w,
+                           predict_bar_start[1]+rec_h),
                           predict_color, -1)
-
-        start_point = (60+image_idx//r, 200)
-        end_point = (60+image_idx//r, 215)
-
-        cv2.line(image, start_point, end_point,
-                 color=self.progress_line_color, thickness=1)
+        # line
+        # XXX: position still not align
+        line_start = (correct_bar_start[0]+int(image_idx*rec_w/r),
+                      predict_bar_start[1])
+        line_end = (correct_bar_start[0]+int(image_idx*rec_w/r),
+                    correct_bar_start[1]+rec_h)
+        cv2.line(image, line_start, line_end,
+                 color=self.progress_line_color, thickness=2)
 
     def get_action_color_mapping(self):
         actions = get_actions(self.data_root, self.dataset)
@@ -172,36 +215,94 @@ class VAS_visualizer():
         return action_to_color
 
 
+def get_result(video_root, gt_root, pred_root):
+    video_files = list(Path(video_root).rglob('*.mp4'))
+    gt_files = list(Path(gt_root).rglob('*.txt'))
+    pred_files = Path(pred_root).rglob('*.txt')
+    data_samples = []
+    for pred_f in pred_files:
+        for video_f in video_files:
+            if video_f.stem == pred_f.stem:
+                break
+
+        for gt_f in gt_files:
+            if gt_f.stem == pred_f.stem:
+                break
+
+        sample = (video_f, gt_f, pred_f)
+        data_samples.append(sample)
+    return data_samples
+
+
+def vas_videos(dataset, data_root, video_root, gt_root, pred_root, save_root='./'):
+    save_root = Path(save_root)
+    V = VAS_visualizer(dataset, data_root, cmap_name='turbo', font_size=1.2)
+
+    data_samples = get_result(video_root, gt_root, pred_root)
+    for video_ref, gt_file, recog_file in data_samples:
+        vid = video_ref.stem
+        gt_content = read_file(gt_file).split('\n')[0:-1]
+        recog_content = read_file(recog_file).split('\n')[0:-1]
+        V(str(video_ref), vid_correct=gt_content,
+          vid_predict=recog_content, save_path=str(save_root.joinpath(f'{vid}.mp4')))
+
+
 def test_coffee():
+    # TODO: input output format
     # cap = cv2.VideoCapture("videos/P03_webcam01_P03_tea.txt.mp4")
     # length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     # print(length)
 
     ground_truth_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\coffee_room\groundTruth'
-    recog_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\results\breakfast\split_1'
-    # vid = 'P03_cam01_P03_coffee.txt'
+    # ground_truth_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\breakfast\groundTruth'
+    recog_path = ground_truth_path
+    # recog_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\results\breakfast\split_1'
+
     video_files = Path(ground_truth_path).glob('*.txt')
+
     video_root = r'C:\Users\test\Desktop\Leon\Datasets\coffee_room_door_event_dataset'
+    # video_root = r'C:\Users\test\Desktop\Leon\Datasets\Breakfast\BreakfastII_15fps_qvga_sync'
     data_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data'
     dataset = 'coffee_room'
-    V = VAS_visualizer(data_root, dataset, cmap_name='turbo')
+    V = VAS_visualizer(dataset, data_root, cmap_name='turbo', font_size=1.2)
 
     for vid_path in video_files:
         vid = vid_path.name
         keys = vid.split('_')
-        keys = [keys[0], keys[1], f'{keys[2]}_{keys[3][:-4]}.avi']
+        keys = [keys[0], keys[1], f'{keys[2]}_{keys[3][:-4]}.mp4']
         video_ref = os.path.join(video_root, *keys)
 
+        vid = '20221102090511_coffee_video_88997_89223'
+        video_ref = os.path.join(
+            rf'C:\Users\test\Desktop\Leon\Datasets\coffee_room_door_event_dataset\train\normal', f'{vid}.mp4')
+
         gt_file = os.path.join(ground_truth_path, vid)
+        # gt_file = os.path.join(
+        #     rf'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\coffee_room\groundTruth', f'{vid}.txt')
         gt_content = read_file(gt_file).split('\n')[0:-1]
-        recog_file = os.path.join(recog_path, vid.split('.')[0])
-        recog_content = read_file(recog_file).split('\n')[1].split()
+        recog_file = os.path.join(recog_path, vid)
+        # recog_file = os.path.join(
+        #     rf'C:\Users\test\Desktop\Leon\Projects\UVAST', f'{vid}.txt')
+        recog_content = read_file(recog_file).split('\n')[0:-1]
+        V(video_ref, vid_correct=gt_content,
+          vid_predict=recog_content, save_path=f'videos/{vid}.mp4')
+
+    for vid_ref, gt_file, recog_file in zip(total_vid_ref, total_gt_file, total_recog_file):
         V(video_ref, vid_correct=gt_content,
           vid_predict=recog_content, save_path=f'videos/{vid}.mp4')
 
 
 if __name__ == '__main__':
-    test_coffee()
+    dataset = 'coffee_room'
+    gt_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\coffee_room\groundTruth'
+    recog_root = r'C:\Users\test\Desktop\Leon\Projects\UVAST\coffee_room2\inference'
+    video_root = r'C:\Users\test\Desktop\Leon\Datasets\coffee_room_door_event_dataset'
+    data_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data'
+    vas_videos(dataset, data_root, video_root,
+               gt_root, recog_root, save_root='results')
+
+    # test_coffee()
+
     # # f = r'C:\Users\test\Desktop\Leon\Projects\video_features\output\i3d'
     # f = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\breakfast\features'
     # for ff in Path(f).glob('*.npy'):
