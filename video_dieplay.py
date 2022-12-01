@@ -85,6 +85,7 @@ class VAS_visualizer():
         self.file_time = file_time
         self.font_size = font_size
         self.color_map = self.get_action_color_mapping()
+        # TODO: height and width reverse
         self.point = AssignGridPosition(height=1920, width=1080,
                                         grid_height_num=64, grid_width_num=36)
 
@@ -122,19 +123,15 @@ class VAS_visualizer():
     def image_vis(self, taskqueue, width, height, fps, frames_per_file, save_path,
                   vid_correct, vid_predict):
         writer = None
-
         # writer = cv2.VideoWriter(
         #     str(Path(save_path).joinpath(f'output.mp4')), self.foucc, fps, (width, height))
-
         image_idx = 0
         while True:
             image, frame_counter = taskqueue.get()
-
             if image is None:
                 break
 
             if frame_counter % frames_per_file == 0:
-
                 if writer:
                     writer.release()
 
@@ -160,7 +157,6 @@ class VAS_visualizer():
         correct = vid_correct[image_idx]
         text_params = (cv2.FONT_HERSHEY_SIMPLEX, self.font_size,
                        self.text_color, 1, cv2.LINE_AA)
-
         cv2.putText(image, 'Predict:', self.point(*(10, 26)), *text_params)
         cv2.putText(image, predict, self.point(*(16, 26)), *text_params)
         cv2.putText(image, 'Correct', self.point(*(10, 28)), *text_params)
@@ -169,21 +165,25 @@ class VAS_visualizer():
         # Progress bar
         cv2.putText(image, 'Predict', self.point(*(10, 31)), *text_params)
         cv2.putText(image, 'Correct', self.point(*(10, 33)), *text_params)
-
-        r = 16
         predict_bar_start = self.point(*(16, 30))
         correct_bar_start = self.point(*(16, 32))
-        # XXX: change to cell height, width
-        rec_h = 30
-        rec_w = 40
-        for i in range(len(vid_correct)//r):
+
+        num_frame = len(vid_correct)
+        # XXX: Check the behave on long sequence. e.g., frame=15000, width=1920
+        # How to perform each action without exceed window width
+        r = 1
+        rec_h = height // 36
+        bar_w = int(width*0.6)
+        rec_w = bar_w / num_frame
+
+        for i in range(num_frame//r):
             correct = vid_correct[i*r]
             correct_color = self.color_map[correct].tolist()
             correct_color = tuple([int(v) for v in correct_color])
             cv2.rectangle(image,
-                          (correct_bar_start[0]+i*rec_w,
+                          (int(correct_bar_start[0]+i*rec_w),
                            correct_bar_start[1]),
-                          (correct_bar_start[0]+(i+1)*rec_w,
+                          (int(correct_bar_start[0]+(i+1)*rec_w),
                            correct_bar_start[1]+rec_h),
                           correct_color, -1)
 
@@ -191,13 +191,12 @@ class VAS_visualizer():
             predict_color = self.color_map[predict].tolist()
             predict_color = tuple([int(v) for v in predict_color])
             cv2.rectangle(image,
-                          (predict_bar_start[0]+i*rec_w,
+                          (int(predict_bar_start[0]+i*rec_w),
                            predict_bar_start[1]),
-                          (predict_bar_start[0]+(i+1)*rec_w,
+                          (int(predict_bar_start[0]+(i+1)*rec_w),
                            predict_bar_start[1]+rec_h),
                           predict_color, -1)
         # line
-        # XXX: position still not align
         line_start = (correct_bar_start[0]+int(image_idx*rec_w/r),
                       predict_bar_start[1])
         line_end = (correct_bar_start[0]+int(image_idx*rec_w/r),
@@ -243,53 +242,56 @@ def vas_videos(dataset, data_root, video_root, gt_root, pred_root, save_root='./
         vid = video_ref.stem
         gt_content = read_file(gt_file).split('\n')[0:-1]
         recog_content = read_file(recog_file).split('\n')[0:-1]
+        # XXX: temporally pad recog_content by last element
+        recog_content.append(recog_content[-1])
+        # print(gt_file.name, len(gt_content), len(recog_content))
         V(str(video_ref), vid_correct=gt_content,
           vid_predict=recog_content, save_path=str(save_root.joinpath(f'{vid}.mp4')))
 
 
-def test_coffee():
-    # TODO: input output format
-    # cap = cv2.VideoCapture("videos/P03_webcam01_P03_tea.txt.mp4")
-    # length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-    # print(length)
+# def test_coffee():
+#     # TODO: input output format
+#     # cap = cv2.VideoCapture("videos/P03_webcam01_P03_tea.txt.mp4")
+#     # length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+#     # print(length)
 
-    ground_truth_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\coffee_room\groundTruth'
-    # ground_truth_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\breakfast\groundTruth'
-    recog_path = ground_truth_path
-    # recog_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\results\breakfast\split_1'
+#     ground_truth_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\coffee_room\groundTruth'
+#     # ground_truth_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\breakfast\groundTruth'
+#     recog_path = ground_truth_path
+#     # recog_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\results\breakfast\split_1'
 
-    video_files = Path(ground_truth_path).glob('*.txt')
+#     video_files = Path(ground_truth_path).glob('*.txt')
 
-    video_root = r'C:\Users\test\Desktop\Leon\Datasets\coffee_room_door_event_dataset'
-    # video_root = r'C:\Users\test\Desktop\Leon\Datasets\Breakfast\BreakfastII_15fps_qvga_sync'
-    data_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data'
-    dataset = 'coffee_room'
-    V = VAS_visualizer(dataset, data_root, cmap_name='turbo', font_size=1.2)
+#     video_root = r'C:\Users\test\Desktop\Leon\Datasets\coffee_room_door_event_dataset'
+#     # video_root = r'C:\Users\test\Desktop\Leon\Datasets\Breakfast\BreakfastII_15fps_qvga_sync'
+#     data_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data'
+#     dataset = 'coffee_room'
+#     V = VAS_visualizer(dataset, data_root, cmap_name='turbo', font_size=1.2)
 
-    for vid_path in video_files:
-        vid = vid_path.name
-        keys = vid.split('_')
-        keys = [keys[0], keys[1], f'{keys[2]}_{keys[3][:-4]}.mp4']
-        video_ref = os.path.join(video_root, *keys)
+#     for vid_path in video_files:
+#         vid = vid_path.name
+#         keys = vid.split('_')
+#         keys = [keys[0], keys[1], f'{keys[2]}_{keys[3][:-4]}.mp4']
+#         video_ref = os.path.join(video_root, *keys)
 
-        vid = '20221102090511_coffee_video_88997_89223'
-        video_ref = os.path.join(
-            rf'C:\Users\test\Desktop\Leon\Datasets\coffee_room_door_event_dataset\train\normal', f'{vid}.mp4')
+#         vid = '20221102090511_coffee_video_88997_89223'
+#         video_ref = os.path.join(
+#             rf'C:\Users\test\Desktop\Leon\Datasets\coffee_room_door_event_dataset\train\normal', f'{vid}.mp4')
 
-        gt_file = os.path.join(ground_truth_path, vid)
-        # gt_file = os.path.join(
-        #     rf'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\coffee_room\groundTruth', f'{vid}.txt')
-        gt_content = read_file(gt_file).split('\n')[0:-1]
-        recog_file = os.path.join(recog_path, vid)
-        # recog_file = os.path.join(
-        #     rf'C:\Users\test\Desktop\Leon\Projects\UVAST', f'{vid}.txt')
-        recog_content = read_file(recog_file).split('\n')[0:-1]
-        V(video_ref, vid_correct=gt_content,
-          vid_predict=recog_content, save_path=f'videos/{vid}.mp4')
+#         gt_file = os.path.join(ground_truth_path, vid)
+#         # gt_file = os.path.join(
+#         #     rf'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\coffee_room\groundTruth', f'{vid}.txt')
+#         gt_content = read_file(gt_file).split('\n')[0:-1]
+#         recog_file = os.path.join(recog_path, vid)
+#         # recog_file = os.path.join(
+#         #     rf'C:\Users\test\Desktop\Leon\Projects\UVAST', f'{vid}.txt')
+#         recog_content = read_file(recog_file).split('\n')[0:-1]
+#         V(video_ref, vid_correct=gt_content,
+#           vid_predict=recog_content, save_path=f'videos/{vid}.mp4')
 
-    for vid_ref, gt_file, recog_file in zip(total_vid_ref, total_gt_file, total_recog_file):
-        V(video_ref, vid_correct=gt_content,
-          vid_predict=recog_content, save_path=f'videos/{vid}.mp4')
+#     for vid_ref, gt_file, recog_file in zip(total_vid_ref, total_gt_file, total_recog_file):
+#         V(video_ref, vid_correct=gt_content,
+#           vid_predict=recog_content, save_path=f'videos/{vid}.mp4')
 
 
 if __name__ == '__main__':
