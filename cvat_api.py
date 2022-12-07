@@ -52,10 +52,13 @@ if __name__ == '__main__':
     password = 'a1s2d3f4'
     annotation_format = 'Datumaro 1.0'
     page_size = 100
+
     # login
     user_cookie = login(url, username, password)
+
     # get tasks
     tasks = get_tasks(url, user_cookie, page_size)
+
     # download annotations
     for data in tasks['results']:
         task_id = data['id']

@@ -249,51 +249,6 @@ def vas_videos(dataset, data_root, video_root, gt_root, pred_root, save_root='./
           vid_predict=recog_content, save_path=str(save_root.joinpath(f'{vid}.mp4')))
 
 
-# def test_coffee():
-#     # TODO: input output format
-#     # cap = cv2.VideoCapture("videos/P03_webcam01_P03_tea.txt.mp4")
-#     # length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-#     # print(length)
-
-#     ground_truth_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\coffee_room\groundTruth'
-#     # ground_truth_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\breakfast\groundTruth'
-#     recog_path = ground_truth_path
-#     # recog_path = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\results\breakfast\split_1'
-
-#     video_files = Path(ground_truth_path).glob('*.txt')
-
-#     video_root = r'C:\Users\test\Desktop\Leon\Datasets\coffee_room_door_event_dataset'
-#     # video_root = r'C:\Users\test\Desktop\Leon\Datasets\Breakfast\BreakfastII_15fps_qvga_sync'
-#     data_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data'
-#     dataset = 'coffee_room'
-#     V = VAS_visualizer(dataset, data_root, cmap_name='turbo', font_size=1.2)
-
-#     for vid_path in video_files:
-#         vid = vid_path.name
-#         keys = vid.split('_')
-#         keys = [keys[0], keys[1], f'{keys[2]}_{keys[3][:-4]}.mp4']
-#         video_ref = os.path.join(video_root, *keys)
-
-#         vid = '20221102090511_coffee_video_88997_89223'
-#         video_ref = os.path.join(
-#             rf'C:\Users\test\Desktop\Leon\Datasets\coffee_room_door_event_dataset\train\normal', f'{vid}.mp4')
-
-#         gt_file = os.path.join(ground_truth_path, vid)
-#         # gt_file = os.path.join(
-#         #     rf'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\coffee_room\groundTruth', f'{vid}.txt')
-#         gt_content = read_file(gt_file).split('\n')[0:-1]
-#         recog_file = os.path.join(recog_path, vid)
-#         # recog_file = os.path.join(
-#         #     rf'C:\Users\test\Desktop\Leon\Projects\UVAST', f'{vid}.txt')
-#         recog_content = read_file(recog_file).split('\n')[0:-1]
-#         V(video_ref, vid_correct=gt_content,
-#           vid_predict=recog_content, save_path=f'videos/{vid}.mp4')
-
-#     for vid_ref, gt_file, recog_file in zip(total_vid_ref, total_gt_file, total_recog_file):
-#         V(video_ref, vid_correct=gt_content,
-#           vid_predict=recog_content, save_path=f'videos/{vid}.mp4')
-
-
 if __name__ == '__main__':
     dataset = 'coffee_room'
     gt_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\coffee_room\groundTruth'
@@ -302,8 +257,6 @@ if __name__ == '__main__':
     data_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data'
     vas_videos(dataset, data_root, video_root,
                gt_root, recog_root, save_root='results')
-
-    # test_coffee()
 
     # # f = r'C:\Users\test\Desktop\Leon\Projects\video_features\output\i3d'
     # f = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\breakfast\features'
