@@ -17,19 +17,11 @@ def image_save(taskqueue, width, height, fps, frames_per_file):
 
     writer = None
 
-    # def capture():
-
-    #     return writer
-
     try:
         while True:
             check_time()
 
             image, frame_counter = taskqueue.get()
-
-            # if image is None:
-            #     break
-
             if frame_counter % frames_per_file == 0:
 
                 if writer:

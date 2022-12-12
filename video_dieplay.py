@@ -141,14 +141,20 @@ class VAS_visualizer():
                 writer = cv2.VideoWriter(
                     save_path, self.foucc, fps, (width, height))
 
-            # TODO: predict, correct tag
-            if image_idx % 2 == 0:
-                self.draw(image, image_idx, vid_correct,
-                          vid_predict, width, height)
-                writer.write(image)
+            self.draw_single_frame(writer, image, image_idx, vid_correct,
+                                   vid_predict, width, height)
             image_idx += 1
 
         writer.release()
+
+    def draw_single_frame(self, writer, image, image_idx, vid_correct,
+                          vid_predict, width, height):
+        # TODO: predict, correct tag
+        if image_idx % 2 == 0:
+            self.draw(image, image_idx, vid_correct,
+                      vid_predict, width, height)
+            writer.write(image)
+        return writer
 
     def draw(self, image, image_idx, vid_correct, vid_predict, width, height):
         # 240 X 320 -> 1080 X 1920
