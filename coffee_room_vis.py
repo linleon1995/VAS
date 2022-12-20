@@ -1,4 +1,4 @@
-from video_dieplay import vas_videos
+from video_display import vas_videos
 
 
 def main():
