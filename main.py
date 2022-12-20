@@ -1,6 +1,6 @@
 import sys
 
-
+# TODO: for unify training
 DATA_ROOT = r'C:\Users\test\Desktop\Leon\Projects'
 UVAST = {
     'name': 'UVAST',

@@ -3,6 +3,13 @@ from pathlib import Path
 
 
 def split(data_root, ratio=0.8):
+    """AI is creating summary for split
+
+    e.g., split(data_root='coffee_room_label')
+    Args:
+        data_root ([type]): [description]
+        ratio (float, optional): [description]. Defaults to 0.8.
+    """
     files = list(Path(data_root).glob('*.txt'))
 
     # XXX: seed
@@ -20,9 +27,3 @@ def split(data_root, ratio=0.8):
     with open('test.txt', 'w+') as fw:
         for f in test_files:
             fw.write(f'{f.name}\n')
-
-    pass
-
-
-if __name__ == '__main__':
-    split(data_root='coffee_room_label')

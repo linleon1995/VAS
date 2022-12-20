@@ -7,108 +7,83 @@ import numpy as np
 import cv2
 
 
-class CRDE_detector():
-    """Coffee room door event detector"""
+import os
+from pathlib import Path
 
-    def __init__(self, image_loc, match_target):
-        self.image_loc = image_loc
-        self.match_target = match_target
-
-    def __call__(self, image):
-        # detect door
-        if self.door_event_detect(image, self.image_loc, self.match_target):
-            return True
-
-        # detect people
-
-    def door_event_detect(self, image, image_loc, match_target):
-        # TODO: locate
-        pic = image[image_loc]
-        return self.matching(pic, match_target)
-
-    def matching(self, img1, img2):
-        # TODO: complete
-        dist = np.sum(np.abs(img1-img2))
-        if dist > 100:
-            return True
-        else:
-            return False
-
-
-class VideoProcess():
-    def __init__(
-        self,
-        proc_func: Callable,
-        foucc: str = 'mp4v',
-    ):
-        self.proc_func = proc_func
-        self.foucc = cv2.VideoWriter_fourcc(*f'{foucc}')
-
-    def get_vid_info(self, vidCap):
-        width = int(vidCap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        height = int(vidCap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        fps = vidCap.get(cv2.CAP_PROP_FPS)
-        return height, width, fps
-
-    def __call__(self, video_ref, save_path):
-        vidCap = cv2.VideoCapture(video_ref)
-        height, width, fps = self.get_vid_info(vidCap)
-
-        taskqueue = Queue()
-
-        frame_counter = 0
-
-        proc = Process(target=self.image_vis, args=(
-            taskqueue, width, height, fps, frames_per_file, save_path
-        ))
-        proc.start()
-        while frame_counter < frames_per_file:
-            ret, image = vidCap.read()
-
-            if ret:
-                taskqueue.put((image, frame_counter))
-                frame_counter += 1
-            else:
-                break
-
-        taskqueue.put((None, None))
-        proc.join()
-        vidCap.release()
-
-    def image_vis(self, taskqueue, width, height, fps, frames_per_file, save_path):
-        writer = None
-        image_idx = 0
-        while True:
-            image, frame_counter = taskqueue.get()
-            if image is None:
-                break
-
-            if frame_counter % frames_per_file == 0:
-                if writer:
-                    writer.release()
-
-                # now = datetime.now()
-                # timestamp = now.strftime("%Y-%m-%d-%H-%M-%S")
-                # TODO: suffix
-                writer = cv2.VideoWriter(
-                    save_path, self.foucc, fps, (width, height))
-
-            self.proc_func(image)
-            image_idx += 1
-
-        writer.release()
+import numpy as np
 
 
 def main():
-    CaptureLength = 15
-    image_loc = []
-    match_target = cv2.imread(r'')
+    data_root = r'C:\Users\test\Desktop\Leon\Datasets\coffee_room_door_event_dataset'
+    stack_size = 16
+    for idx, vid_f in enumerate(Path(data_root).rglob('*.mp4')):
+        data_dir = vid_f.parent.parts[-2:]
+        data_dir = Path('output').joinpath(*data_dir)
+        data_dir.mkdir(parents=True, exist_ok=True)
+        os.system(
+            'python main.py '
+            'feature_type=i3d '
+            'device="cuda:0" '
+            f'video_paths="[{vid_f}]" '
+            f'output_paths="{str(data_dir)}" '
+            'on_extraction="save_numpy" '
+            f'stack_size={stack_size} '
+            'step_size=1 '
+        )
 
-    EventDet = CRDE_detector(image_loc, match_target)
-    vid_proc = VideoProcess(proc_func=EventDet)
+        # feature_file = data_dir.with_stem(vid_f.stem).with_suffix('.npy')
+        # a = np.load(feature_file)
+        # print(a.shape, a.min(), a.max())
 
-    raw_vid_ref = r'C:\Users\test\Desktop\Leon\Datasets\coffee_room\door\20221101142355_coffee_video.mp4'
-    vid_proc(video_ref=raw_vid_ref)
+
+def process_feature(data_root, stack_size: int = 16):
+    # TODO: call by main
+    total_feats = {}
+    data_root = Path(data_root)
+    save_dir = data_root.parent.joinpath(f'{data_root.name}_vid_f')
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    for idx, vid_f in enumerate(data_root.rglob('*.npy')):
+        parts = vid_f.stem.split('_')
+        filename, feat_type = '_'.join(parts[:-1]), parts[-1]
+        if feat_type in ['ms', 'fps']:
+            continue
+
+        if filename not in total_feats:
+            total_feats[filename] = {
+                'rgb': vid_f.with_name(f'{filename}_rgb.npy'),
+                'flow': vid_f.with_name(f'{filename}_flow.npy'),
+            }
+        else:
+            continue
+
+    for idx, (filename, feats) in enumerate(total_feats.items(), 1):
+        if 'rgb' in feats and 'flow' in feats:
+            print(f'{idx}/{len(total_feats)} Process feature')
+            rgb_f = np.load(feats['rgb'])
+            flow_f = np.load(feats['flow'])
+
+            video_feature = np.concatenate([rgb_f, flow_f], axis=1)
+            # XXX: Copy 1st frame currently
+            _1st_frame_feature = np.tile(
+                video_feature[0:1], reps=(stack_size-1, 1))
+            video_feature = np.concatenate(
+                [_1st_frame_feature, video_feature], axis=0)
+
+            video_feature = np.transpose(video_feature)
+            video_feature = np.float32(video_feature)
+            np.save(save_dir.joinpath(f'{filename}.npy'), video_feature)
+    pass
+
+
+if __name__ == '__main__':
+    # main()
+    data_root = r'C:\Users\test\Desktop\Leon\Projects\video_features\output\i3d'
+    process_feature(data_root)
+
+
+def main():
+    pass
 
 
 if __name__ == '__main__':
