@@ -2,13 +2,21 @@
 # TODO: main function
 from datetime import datetime
 from multiprocessing import Process, Queue
+from pathlib import Path
+import argparse
 
 import cv2
 
 from scheduled_recording import check_time
 
+parser = argparse.ArgumentParser()
+parser.add_argument('--loc', default='coffee', type=str,
+                    help='The room to be recorded.')
 
-def image_save(taskqueue, width, height, fps, frames_per_file):
+args = parser.parse_args()
+
+
+def image_save(taskqueue, width, height, fps, frames_per_file, save_dir):
 
     # 指定影片編碼
     #fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -34,8 +42,12 @@ def image_save(taskqueue, width, height, fps, frames_per_file):
                 # 建立 VideoWriter 物件（以時間命名）
                 now = datetime.now()
                 timestamp = now.strftime("%Y-%m-%d-%H-%M-%S")
+                print(now)
+                save_dir = Path(save_dir)
+                save_dir.mkdir(parents=True, exist_ok=True)
+                save_file = save_dir.joinpath(f'output-{timestamp}.mp4')
                 writer = cv2.VideoWriter(
-                    f'videos/output-{timestamp}.mp4', fourcc, fps, (width, height))
+                    str(save_file), fourcc, fps, (width, height))
 
             # 儲存影像
             writer.write(image)
@@ -47,8 +59,15 @@ def image_save(taskqueue, width, height, fps, frames_per_file):
 if __name__ == '__main__':
 
     # 開啟 RTSP 串流
-    LAB_RTSP = 'rtsp://root:a1s2d3f4@192.168.50.161:554/live.sdp'
-    vidCap = cv2.VideoCapture(LAB_RTSP)
+    # LAB_RTSP = 'rtsp://root:a1s2d3f4@192.168.50.161:554/live.sdp'
+    # LAB_RTSP = 'rtsp://ditsol:1234567@192.168.1.142:554/stream1'
+    location = args.loc
+    print(location)
+    url_map = {
+        'coffee': 'rtsp://ditsol:1234567@192.168.1.141:554/stream1',
+        'lab': 'rtsp://root:a1s2d3f4@192.168.50.161:554/live.sdp'
+    }
+    vidCap = cv2.VideoCapture(url_map[location])
 
     # 取得影像的尺寸大小
     width = int(vidCap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -74,7 +93,7 @@ if __name__ == '__main__':
 
     # 建立並執行工作行程
     proc = Process(target=image_save, args=(
-        taskqueue, width, height, fps, frames_per_file))
+        taskqueue, width, height, fps, frames_per_file, f'videos/{location}'))
     proc.start()
 
     while frame_counter < total_frames:

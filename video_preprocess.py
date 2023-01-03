@@ -13,27 +13,53 @@ from pathlib import Path
 import numpy as np
 
 
-def main():
-    data_root = r'C:\Users\test\Desktop\Leon\Datasets\coffee_room_door_event_dataset'
-    stack_size = 16
+def main(data_root, save_root, stack_size, method='i3d'):
+    # save_dir = Path(save_root).joinpath(method)
+    save_dir = Path(save_root)
+    save_dir.mkdir(parents=True, exist_ok=True)
+
+    # ff = '['
+    # for idx, path in enumerate(Path(data_root).rglob('*.mp4')):
+    #     if idx > 3:
+    #         break
+    #     ff = ff + str(path) + ', '
+    # ff = ff[:-2] + ']'
+    # print(ff)
+    # print(datetime.now())
+    # os.system(
+    #     'python main.py '
+    #     f'feature_type={method} '
+    #     'device="cuda:0" '
+    #     f'output_path="{str(save_dir)}" '
+    #     f'video_paths="{ff}" '
+    #     'on_extraction="save_numpy" '
+    #     f'stack_size={stack_size} '
+    #     'step_size=1 '
+    #     'batch_size=4 '
+    # )
+    # print(datetime.now())
+
     for idx, vid_f in enumerate(Path(data_root).rglob('*.mp4')):
-        data_dir = vid_f.parent.parts[-2:]
-        data_dir = Path('output').joinpath(*data_dir)
-        data_dir.mkdir(parents=True, exist_ok=True)
+        # data_dir = vid_f.parent.parts[-2:]
+        # data_dir = Path('output').joinpath(*data_dir)
+        # data_dir.mkdir(parents=True, exist_ok=True)
+        # os.system('cd ..')
+        # os.system('cd video_features')
         os.system(
             'python main.py '
-            'feature_type=i3d '
+            f'feature_type={method} '
             'device="cuda:0" '
+            f'output_path="{str(save_dir)}" '
             f'video_paths="[{vid_f}]" '
-            f'output_paths="{str(data_dir)}" '
             'on_extraction="save_numpy" '
             f'stack_size={stack_size} '
             'step_size=1 '
         )
 
-        # feature_file = data_dir.with_stem(vid_f.stem).with_suffix('.npy')
-        # a = np.load(feature_file)
-        # print(a.shape, a.min(), a.max())
+    # feature_file = data_dir.with_stem(vid_f.stem).with_suffix('.npy')
+    # a = np.load(feature_file)
+    # print(a.shape, a.min(), a.max())
+    return save_dir
 
 
 def process_feature(data_root, stack_size: int = 16):
@@ -77,14 +103,12 @@ def process_feature(data_root, stack_size: int = 16):
 
 
 if __name__ == '__main__':
-    # main()
-    data_root = r'C:\Users\test\Desktop\Leon\Projects\video_features\output\i3d'
-    process_feature(data_root)
+    # # TODO: speed up
+    # data_root = r'C:\Users\test\Desktop\Leon\Datasets\coffee_room\events_door'
+    # save_dir = r'C:\Users\test\Desktop\Leon\Datasets\coffee_room\events_door_feature'
+    # stack_size = 16
+    # method = 'i3d'
+    # feature_save_dir = main(data_root, save_dir, stack_size)
 
-
-def main():
-    pass
-
-
-if __name__ == '__main__':
-    main()
+    feature_save_dir = r'C:\Users\test\Desktop\Leon\Datasets\coffee_room\events_door_feature\i3d'
+    process_feature(feature_save_dir)

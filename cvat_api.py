@@ -132,13 +132,16 @@ def create_downloader(url, cookies, task_id, annotation_format):
     return downloader
 
 
-def dowmload_annotation():
+def dowmload_annotation(save_dir=None, task_ids=None):
     # parameters
     url = 'http://192.168.50.89:8080'
     username = 'admin'
     password = 'a1s2d3f4'
     annotation_format = 'Datumaro 1.0'
-    page_size = 100
+    page_size = 500
+    if save_dir is not None:
+        save_dir = Path(save_dir)
+        save_dir.mkdir(parents=True, exist_ok=True)
 
     # login
     user_cookie = login(url, username, password)
@@ -150,13 +153,25 @@ def dowmload_annotation():
     for data in tasks['results']:
         task_id = data['id']
         task_name = data['name']
-        state = data['segments'][0]['jobs'][0]['state']
-        if state == 'completed' or state == 'rejected':
-            annotations = download_annotations(url, user_cookie, task_id,
-                                               annotation_format)
-            filename = task_name.split('_', 2)[-1]
-            with open(f'{filename}.json', 'w') as file:
-                json.dump(annotations, file)
+        # TODO:
+        # if task_id < 94 or task_id > 387:
+        # continue
+        if task_id not in task_ids:
+            continue
+
+        if data['segments']:
+            state = data['segments'][0]['jobs'][0]['state']
+            stage = data['segments'][0]['jobs'][0]['stage']
+            if state == 'completed' or state == 'rejected' or stage == 'acceptance':
+                annotations = download_annotations(url, user_cookie, task_id,
+                                                   annotation_format)
+                filename = task_name
+                # filename = task_name.split('_', 2)[-1]
+                print(f'Download label {task_id} -> {filename}')
+                if save_dir is not None:
+                    filename = str(save_dir.joinpath(filename))
+                with open(f'{filename}.json', 'w') as file:
+                    json.dump(annotations, file)
 
 
 def upload_annots_and_images():
@@ -191,5 +206,7 @@ def upload_annots_and_images():
 
 
 if __name__ == '__main__':
-    # dowmload_annotation()
-    upload_annots_and_images()
+    save_dir = r'timestamp2'
+    task_ids = list(range(94, 388))
+    dowmload_annotation(save_dir=save_dir, task_ids=task_ids)
+    # upload_annots_and_images()

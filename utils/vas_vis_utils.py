@@ -184,7 +184,7 @@ class VAS_visualizer():
 
         for i in range(num_frame//r):
             correct = vid_correct[i*r]
-            correct_color = self.color_map[correct].tolist()
+            correct_color = self.color_map[correct]
             correct_color = tuple([int(v) for v in correct_color])
             cv2.rectangle(image,
                           (int(correct_bar_start[0]+i*rec_w),
@@ -194,7 +194,7 @@ class VAS_visualizer():
                           correct_color, -1)
 
             predict = vid_predict[i*r]
-            predict_color = self.color_map[predict].tolist()
+            predict_color = self.color_map[predict]
             predict_color = tuple([int(v) for v in predict_color])
             cv2.rectangle(image,
                           (int(predict_bar_start[0]+i*rec_w),
@@ -216,7 +216,8 @@ class VAS_visualizer():
         colors = get_cmap_for_cv2(num_classes, cmap_name=self.cmap_name)
         action_to_color = dict()
         for action, color in zip(actions, colors):
-            action_to_color[action] = color[:-1]
+            *rgb_color, transparent = color
+            action_to_color[action] = rgb_color
         return action_to_color
 
 
@@ -225,6 +226,7 @@ def get_result(video_root, gt_root, pred_root):
     gt_files = list(Path(gt_root).rglob('*.txt'))
     pred_files = Path(pred_root).rglob('*.txt')
     data_samples = []
+    # TODO: alert if video can't find
     for pred_f in pred_files:
         for video_f in video_files:
             if video_f.stem == pred_f.stem:
@@ -241,6 +243,7 @@ def get_result(video_root, gt_root, pred_root):
 
 def vas_videos(dataset, data_root, video_root, gt_root, pred_root, save_root='./'):
     save_root = Path(save_root)
+    save_root.mkdir(parents=True, exist_ok=True)
     V = VAS_visualizer(dataset, data_root, cmap_name='turbo', font_size=1.2)
 
     data_samples = get_result(video_root, gt_root, pred_root)
@@ -255,11 +258,11 @@ def vas_videos(dataset, data_root, video_root, gt_root, pred_root, save_root='./
           vid_predict=recog_content, save_path=str(save_root.joinpath(f'{vid}.mp4')))
 
 
-if __name__ == '__main__':
-    dataset = 'coffee_room'
-    gt_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\coffee_room\groundTruth'
-    recog_root = r'C:\Users\test\Desktop\Leon\Projects\UVAST\coffee_room2\inference'
-    video_root = r'C:\Users\test\Desktop\Leon\Datasets\coffee_room_door_event_dataset'
-    data_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data'
-    vas_videos(dataset, data_root, video_root,
-               gt_root, recog_root, save_root='results')
+# if __name__ == '__main__':
+#     dataset = 'coffee_room'
+#     gt_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data\coffee_room\groundTruth'
+#     recog_root = r'C:\Users\test\Desktop\Leon\Projects\UVAST\coffee_room2\inference'
+#     video_root = r'C:\Users\test\Desktop\Leon\Datasets\coffee_room_door_event_dataset'
+#     data_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data'
+#     vas_videos(dataset, data_root, video_root,
+#                gt_root, recog_root, save_root='results')

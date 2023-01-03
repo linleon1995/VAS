@@ -33,8 +33,10 @@ def split(data_root, ratio=0.8):
 
 class VAS_label_process():
     def __init__(self, data_dir, save_dir, save_mid_conversion=False):
-        self.data_dir = data_dir
-        self.save_dir = save_dir
+        self.data_dir = Path(data_dir)
+        self.save_dir = Path(save_dir)
+        self.data_dir.mkdir(parents=True, exist_ok=True)
+        self.save_dir.mkdir(parents=True, exist_ok=True)
         self.save_mid_conversion = save_mid_conversion
 
     def load_json(self, filepath):
@@ -112,12 +114,19 @@ class VAS_label_process():
         datumaro_label_for_label_map = self.load_json(label_file)
         self.save_action_mapping(datumaro_label_for_label_map)
 
+        #
+        with open(self.save_dir.joinpath(f'filenames.txt'), 'w+') as fw:
+            data = []
+            for idx, label_file in enumerate(self.save_dir.joinpath('groundTruth').glob('*.txt')):
+                data.append(f'{label_file.name}\n')
+            data[-1] = data[-1][:-1]
+            fw.writelines(data)
+
 
 if __name__ == '__main__':
     # TODO: add split function
-    data_dir = Path('timestamp - Copy')
-    save_dir = Path('frames - Copy')
-    save_dir.mkdir(parents=True, exist_ok=True)
+    data_dir = 'timestamp2'
+    save_dir = 'frames2'
 
     vas_label_process = VAS_label_process(data_dir, save_dir, True)
     vas_label_process.run()

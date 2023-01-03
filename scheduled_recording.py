@@ -14,7 +14,7 @@ def get_capture_attribute(capture):
 
 def record(schedule_start_time, schedule_end_time, location, url):
     check_time(schedule_start_time, schedule_end_time)
-    os.system('python video_capture.py')
+    os.system(f'python video_capture.py --loc={location}')
 
 
 def check_time(schedule_start_time=None, schedule_end_time=None):
@@ -90,14 +90,18 @@ if __name__ == '__main__':
     schedule_end_time = datetime.time(hour=20, minute=0, second=0)
     location = 'coffee'
     url_map = {
-        'coffee': 'rtsp://ditsol:1234567@192.168.1.142:554/stream1',
+        'coffee': 'rtsp://ditsol:1234567@192.168.1.141:554/stream1',
         'lab': 'rtsp://root:a1s2d3f4@192.168.50.161:554/live.sdp'
     }
     url = url_map[location]
 
     # run
     filename = None
+    idx = 0
     while True:
+        if idx > 10:
+            break
+        idx += 1
         try:
             filename = record(schedule_start_time,
                               schedule_end_time, location, url)
