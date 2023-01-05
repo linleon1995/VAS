@@ -253,6 +253,7 @@ def vas_videos(dataset, data_root, video_root, gt_root, pred_root, save_root='./
         recog_content = read_file(recog_file).split('\n')[0:-1]
         # XXX: temporally pad recog_content by last element
         recog_content.append(recog_content[-1])
+        gt_content = recog_content
         # print(gt_file.name, len(gt_content), len(recog_content))
         V(str(video_ref), vid_correct=gt_content,
           vid_predict=recog_content, save_path=str(save_root.joinpath(f'{vid}.mp4')))

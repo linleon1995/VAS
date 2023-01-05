@@ -111,4 +111,5 @@ if __name__ == '__main__':
     # feature_save_dir = main(data_root, save_dir, stack_size)
 
     feature_save_dir = r'C:\Users\test\Desktop\Leon\Datasets\coffee_room\events_door_feature\i3d'
+    feature_save_dir = r'C:\Users\test\Desktop\Leon\Projects\video_features\output\exp\New folder\i3d'
     process_feature(feature_save_dir)
