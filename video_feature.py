@@ -14,6 +14,7 @@ from pytorchvideo.transforms import (
     ShortSideScale,
     UniformTemporalSubsample
 )
+import numpy as np
 
 from models.video_feat_extractor import PytorchVideoModel, get_transform_temp, get_vid_temp
 
@@ -91,7 +92,6 @@ def main():
 
                 continue
 
-        # Initialize an EncodedVideo helper class and load the video
         video = torchvision.io.read_video(str(video_path))
         video_data = video[0]
         video_data = torch.transpose(
@@ -110,16 +110,14 @@ def main():
                 idx = min(num_frames-window_size, idx)
                 video_clip = video_data[:, idx:idx+window_size]
                 frame_feat = vid_feat_pipe.run(video_clip)
-                # TODO: CUDA out of memory
+                # Prevent CUDA out of memory
                 frame_feat = frame_feat.detach().cpu().numpy()
                 video_feat.append(frame_feat)
 
-                # print(frame_feat.shape)
             t2 = time.time()
             print(f'Process time {t2-t1}')
 
             # out_feature = torch.cat(video_feat, dim=0)
-            import numpy as np
             out_feature = np.stack(video_feat, axis=2)
             out_feature = np.squeeze(out_feature, axis=0)
             out_feature = out_feature[:, :, 0, 0, 0]

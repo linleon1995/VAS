@@ -49,10 +49,13 @@ if __name__ == '__main__':
                                   device=device, training=training, transform=transform)
         return model.run
 
+    def get_vas_model():
+        from ..MS_TCN2.model import MS_TCN2
+
     transform, transform_params = get_transform_temp()
     # TODO: better args passing way.
     inferencer = VAS_inference(
-        model_name='x3d_s',
+        model_name='x3d_m',
         pretrained=True,
         device='cpu',
         training=False,
@@ -61,6 +64,15 @@ if __name__ == '__main__':
         get_vas_model=get_vas_model,
     )
 
-    video = get_vid_temp(transform_params)
+    # video = get_vid_temp(transform_params)
+
+    import torchvision
+    video_path = r'C:\Users\test\Desktop\Leon\Projects\VAS\exp\New folder\output-2023-01-03-14-41-06-1.mp4'
+    video = torchvision.io.read_video(str(video_path))
+    video_data = video[0]
+    video_data = torch.transpose(
+        torch.unsqueeze(video_data, dim=0), 0, -1)
+    video_data = torch.squeeze(video_data, dim=-1)
+
     inferencer(video)
     pass

@@ -4,9 +4,10 @@ from multiprocessing import Process, Queue
 from datetime import datetime
 from typing import Tuple
 
+import cv2
 from matplotlib import cm
 import numpy as np
-import cv2
+from tqdm import tqdm
 
 
 def get_cmap_for_cv2(num_classes: int, cmap_name: str = 'jet'):
@@ -247,13 +248,13 @@ def vas_videos(dataset, data_root, video_root, gt_root, pred_root, save_root='./
     V = VAS_visualizer(dataset, data_root, cmap_name='turbo', font_size=1.2)
 
     data_samples = get_result(video_root, gt_root, pred_root)
-    for video_ref, gt_file, recog_file in data_samples:
+    for video_ref, gt_file, recog_file in tqdm(data_samples):
         vid = video_ref.stem
         gt_content = read_file(gt_file).split('\n')[0:-1]
         recog_content = read_file(recog_file).split('\n')[0:-1]
         # XXX: temporally pad recog_content by last element
         recog_content.append(recog_content[-1])
-        gt_content = recog_content
+        # gt_content = recog_content
         # print(gt_file.name, len(gt_content), len(recog_content))
         V(str(video_ref), vid_correct=gt_content,
           vid_predict=recog_content, save_path=str(save_root.joinpath(f'{vid}.mp4')))
