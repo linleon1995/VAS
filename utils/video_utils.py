@@ -1,19 +1,22 @@
+from typing import List
 
 import cv2
 
 
-def get_frames_from_video(vid_path):
-    """AI is creating summary for get_frames_from_video
+def read_video(filename: str) -> List:
+    """Read the video through cv2
 
-    # vid_path = r'video.mp4'
-    # frames = get_frames_from_video(vid_path)
+    e.g.,
+    vid_path = r'video.mp4'
+    frames = read_video(vid_path)
+
     Args:
-        vid_path ([type]): [description]
+        filename (str): Input video.
 
     Returns:
-        [type]: [description]
+        List: List of video frames
     """
-    video_capture = cv2.VideoCapture(vid_path)
+    video_capture = cv2.VideoCapture(filename)
     frames = []
     while video_capture.isOpened():
         ret, frame = video_capture.read()

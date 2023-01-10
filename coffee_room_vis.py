@@ -9,8 +9,8 @@ def main():
     video_root = r'C:\Users\test\Desktop\Leon\Datasets\coffee_room'
     data_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data'
 
-    gt_root = r'C:\Users\test\Desktop\Leon\Projects\video_features\output\exp\New folder\gt'
-    recog_root = r'C:\Users\test\Desktop\Leon\Projects\video_features\output\exp\New folder\pred'
+    gt_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\results\coffee_room\split_3'
+    recog_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\results\coffee_room\split_3'
     video_root = r'C:\Users\test\Desktop\Leon\Projects\VAS\exp\New folder'
     data_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data'
 
@@ -21,7 +21,7 @@ def main():
     # data_root = r'C:\Users\test\Desktop\Leon\Projects\MS-TCN2\data'
 
     vas_videos(dataset, data_root, video_root,
-               gt_root, recog_root, save_root='exp/results_add52_custom')
+               gt_root, recog_root, save_root='exp/results_add52_custom_mstcn')
 
 
 if __name__ == '__main__':

@@ -1,6 +1,8 @@
 from typing import Callable, Dict
 
 import torch
+import torch.nn as nn
+from torchvision.models.feature_extraction import create_feature_extractor
 
 
 class PytorchVideoModel():
@@ -31,6 +33,7 @@ class PytorchVideoModel():
 
         input_data = input_data.to(self.device)
         feat = self.model(input_data)
+        feat = nn.AdaptiveAvgPool3d(output_size=1)(feat['feat'])
         return feat
 
     def get_infer_modules(self) -> Dict:
@@ -46,6 +49,26 @@ class PytorchVideoModel():
                                self.model_name, pretrained=self.pretrained)
 
         # Set to GPU or CPU
+        # xxx = list(model.children())
+        # model2 = torch.nn.Sequential(*(list(model.children())[:-1]))
+        # model.blocks.5.proj = nn.Identity()
+        # a = list(model.modules())
+        # model = torch.nn.Sequential(*(list(model.modules())[:-10]))
+        # for (name, module) in model.named_modules():
+        #     print(name, module)
+
+        model = create_feature_extractor(model, {'blocks.5.dropout': 'feat'})
+        # for (name, module) in model.named_modules():
+        #     print(name, module)
+        # model_list = list(model.children())
+        # model_list.append(nn.AdaptiveAvgPool3d(output_size=1))
+        # model = torch.nn.Sequential(*model_list)
+        # model = nn.Sequential(
+        #     model,
+        #     nn.AdaptiveAvgPool3d(output_size=1)
+        # )
+        # for (name, module) in model.named_modules():
+        #     print(name, module)
         model = model.train() if self.training else model.eval()
         model = model.to(self.device)
         return model
